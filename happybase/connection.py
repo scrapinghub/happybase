@@ -7,12 +7,12 @@ HappyBase connection module.
 import logging
 
 import six
-from thriftpy.thrift import TClient
 from thriftpy.transport import TBufferedTransport, TFramedTransport, TSocket
 from thriftpy.protocol import TBinaryProtocol, TCompactProtocol
 
 from Hbase_thrift import Hbase, ColumnDescriptor
 
+from .client import RecoveringClient
 from .table import Table
 from .util import ensure_bytes, pep8_to_camel_case
 
@@ -155,7 +155,7 @@ class Connection(object):
 
         self.transport = self._transport_class(socket)
         protocol = self._protocol_class(self.transport, decode_response=False)
-        self.client = TClient(Hbase, protocol)
+        self.client = RecoveringClient(Hbase, protocol, connection=self)
 
     def _table_name(self, name):
         """Construct a table name by optionally adding a table name prefix."""
