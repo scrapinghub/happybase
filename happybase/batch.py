@@ -2,11 +2,9 @@
 HappyBase Batch module.
 """
 
-from collections import defaultdict, deque
 import logging
 from numbers import Integral
-from time import time
-import numpy as np
+from collections import defaultdict
 
 import six
 
@@ -21,7 +19,6 @@ class Batch(object):
     This class cannot be instantiated directly; use :py:meth:`Table.batch`
     instead.
     """
-    _log_interval = 60.0
     def __init__(self, table, timestamp=None, batch_size=None,
                  transaction=False, wal=True):
         """Initialise a new Batch instance."""
@@ -41,8 +38,6 @@ class Batch(object):
         self._transaction = transaction
         self._wal = wal
         self._families = None
-        self._resp_times = deque(maxlen=50)
-        self._next_log_time = time() + self._log_interval
         self._reset_mutations()
 
     def _reset_mutations(self):
@@ -60,29 +55,12 @@ class Batch(object):
         if not bms:
             return
 
-        #logger.debug("Sending batch for '%s' (%d mutations on %d rows)",
-        #             self._table.name, self._mutation_count, len(bms))
-        t = time()
         if self._timestamp is None:
             self._table.connection.client.mutateRows(self._table.name, bms, {}, no_retry=True)
         else:
             self._table.connection.client.mutateRowsTs(
                 self._table.name, bms, self._timestamp, {}, no_retry=True)
-        elapsed = (time() - t) * 1E+3
-        self._resp_times.append(elapsed)
-        #logger.debug("Time taken for sending the batch - %f ms", elapsed)
         self._reset_mutations()
-        if self._next_log_time < t:
-            self._log_response_times()
-            self._next_log_time = time() + self._log_interval
-
-    def _log_response_times(self):
-        logger.debug("batch %d response times (ms) statistics", id(self))
-        logger.debug("mean: %f", "stdev: %f", "median: %f", "count: %d",
-                     np.mean(self._resp_times),
-                     np.std(self._resp_times),
-                     np.median(self._resp_times),
-                     len(self._resp_times))
 
     #
     # Mutation methods
