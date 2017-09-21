@@ -13,6 +13,9 @@ from Hbase_thrift import BatchMutation, Mutation
 logger = logging.getLogger(__name__)
 
 
+DEFAULT_HBASE_THRIFT_FRAME_SIZE = 2097152
+
+
 class Batch(object):
     """Batch mutation class.
 
@@ -76,6 +79,13 @@ class Batch(object):
         """
         if wal is None:
             wal = self._wal
+        # 100 bytes is a rough estimation
+        frame_size = 100 + len(self._table.name) + len(row)
+        frame_size += sum(len(column) + len(value) + 8 for column, value in six.iteritems(data))
+        if frame_size >= DEFAULT_HBASE_THRIFT_FRAME_SIZE:
+            raise ValueError("Frame size %d needed for this mutation is bigger than default HBase Thrift server "
+                                "frame size %d. This mutation isn't included in batch" %
+                             (frame_size, DEFAULT_HBASE_THRIFT_FRAME_SIZE))
 
         self._mutations[row].extend(
             Mutation(
